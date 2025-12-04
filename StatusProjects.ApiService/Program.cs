@@ -125,6 +125,73 @@ app.MapPost("/registerProject", async (RegisterProject project, AppDbContext db,
     return Results.Created($"/getStatusProjects/{p.Id}", result);
 });
 
+app.MapPost("/refreshProject", async (RefreshProjectRequest request, AppDbContext db, IHttpClientFactory httpClientFactory) =>
+{
+    if (string.IsNullOrWhiteSpace(request.UrlEndpoint))
+    {
+        return Results.BadRequest("UrlEndpoint é obrigatório.");
+    }
+
+    var project = await db.Projects.SingleOrDefaultAsync(p => p.UrlEndpoint == request.UrlEndpoint);
+    if (project is null)
+    {
+        return Results.NotFound("Projeto não encontrado para o UrlEndpoint informado.");
+    }
+
+    var client = httpClientFactory.CreateClient();
+
+    var endpoint = project.UrlEndpoint;
+    if (!endpoint.EndsWith("/health", StringComparison.OrdinalIgnoreCase))
+    {
+        endpoint = endpoint.TrimEnd('/') + "/health";
+    }
+
+    var stopwatch = Stopwatch.StartNew();
+    try
+    {
+        var response = await client.GetAsync(endpoint);
+        stopwatch.Stop();
+
+        project.Latency = (int)stopwatch.ElapsedMilliseconds;
+
+        if (!response.IsSuccessStatusCode)
+        {
+            project.Status = Status.Inactive;
+        }
+        else
+        {
+            if (project.Latency < 1000)
+            {
+                project.Status = Status.Active;
+            }
+            else
+            {
+                project.Status = Status.LowActivity;
+            }
+        }
+    }
+    catch
+    {
+        stopwatch.Stop();
+        project.Latency = 0;
+        project.Status = Status.Inactive;
+    }
+
+    await db.SaveChangesAsync();
+
+    var result = new
+    {
+        project.Id,
+        project.Name,
+        project.UrlRedirect,
+        project.UrlEndpoint,
+        project.Latency,
+        Status = project.Status.ToString()
+    };
+
+    return Results.Ok(result);
+});
+
 app.MapGet("/getStatusProjects", async (AppDbContext db, IHttpClientFactory httpClientFactory) =>
 {
     var projects = await db.Projects.ToListAsync();
@@ -188,3 +255,4 @@ app.MapDefaultEndpoints();
 app.Run();
 
 internal sealed record RegisterProject(string Name, string UrlRedirect, string UrlEndpoint);
+internal sealed record RefreshProjectRequest(string UrlEndpoint);

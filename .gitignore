@@ -1,0 +1,8 @@
+.vs/
+obj/
+bin/
+node_modules/
+.vscode/
+appsettings.Development.json
+*.csproj.user
+.git/

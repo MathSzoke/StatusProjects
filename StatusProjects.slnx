@@ -1,0 +1,10 @@
+<Solution>
+  <Project Path="StatusProjects.ApiService/StatusProjects.ApiService.csproj" />
+  <Project Path="StatusProjects.AppHost/StatusProjects.AppHost.csproj" />
+  <Project Path="StatusProjects.ServiceDefaults/StatusProjects.ServiceDefaults.csproj" />
+  <Project Path="StatusProjects.Tests/StatusProjects.Tests.csproj" />
+  <Project Path="statusprojects.web/statusprojects.web.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+</Solution>
